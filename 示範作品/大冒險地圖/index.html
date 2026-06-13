@@ -284,6 +284,73 @@
             background: #388e3c;
         }
 
+        /* Ending Slides */
+        #ending-screen {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 4000;
+            cursor: pointer;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+        #ending-screen.active {
+            display: flex;
+            animation: fadeIn 2s forwards;
+        }
+
+        .slide-bg {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover;
+            background-position: center;
+            opacity: 0;
+            transition: opacity 1.5s;
+        }
+
+        .slide-bg.active {
+            opacity: 1;
+        }
+
+        .ending-title {
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #ffd54f;
+            font-size: 3rem;
+            text-shadow: 0 0 15px rgba(255,213,79,0.8);
+            letter-spacing: 5px;
+            opacity: 0;
+            transition: opacity 2s;
+            z-index: 4010;
+        }
+
+        .dialogue-box {
+            position: relative;
+            width: 80%;
+            max-width: 800px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #546e7a;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 50px;
+            color: #eceff1;
+            font-size: 1.5rem;
+            line-height: 1.6;
+            min-height: 120px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            z-index: 4010;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
     </style>
 </head>
 <body>
@@ -339,6 +406,20 @@
             </div>
             
             <button class="btn-action" onclick="closeDoorModal()">關閉</button>
+        </div>
+    </div>
+
+    <!-- Ending Slides -->
+    <div id="ending-screen">
+        <div class="slide-bg" id="slide-1" style="background-image: url('../../end1.png');"></div>
+        <div class="slide-bg" id="slide-2" style="background-image: url('../../end2.png');"></div>
+        <div class="slide-bg" id="slide-3" style="background-image: url('../../end3.png');"></div>
+        <div class="slide-bg" id="slide-4" style="background-image: url('../../end4.png');"></div>
+        
+        <div class="ending-title" id="ending-title">封印之門的迴響</div>
+        
+        <div class="dialogue-box" id="ending-text">
+            <!-- Text will be typed here -->
         </div>
     </div>
 
@@ -517,7 +598,7 @@
                     placedCount++;
                     
                     if (placedCount === 3) {
-                        setTimeout(triggerWin, 500);
+                        setTimeout(startCutscene, 500);
                     }
                 }
             }
@@ -542,9 +623,77 @@
             draggedEl = null;
         }
 
-        function triggerWin() {
+        // Cutscene Logic
+        const endingData = [
+            "伴隨著三枚憑證的共鳴，沉睡百年的大門發出低沉的轟鳴，一線金芒切開了幽暗。",
+            "門後沒有無盡的財寶，而是被遺忘的歷史織理與歲月箴言。智慧，始終靜候著尋道者。",
+            "晨曦拂破雲海。旅途中的那些謎題與戰鬥，終究化作了你眼底的一抹清明。",
+            "故事總有終章，但世界的邊界，才剛剛為你敞開。"
+        ];
+        let currentSlide = 0;
+        let isTyping = false;
+        let typeTimeout;
+
+        function startCutscene() {
             document.getElementById('door-modal').style.display = 'none';
+            document.getElementById('ending-screen').classList.add('active');
             
+            setTimeout(() => {
+                document.getElementById('ending-title').style.opacity = 1;
+            }, 1000);
+
+            showSlide(0);
+        }
+
+        function showSlide(index) {
+            currentSlide = index;
+            // hide all slides
+            document.querySelectorAll('.slide-bg').forEach(el => el.classList.remove('active'));
+            document.getElementById('slide-' + (index + 1)).classList.add('active');
+            
+            // type text
+            const text = endingData[index];
+            const textContainer = document.getElementById('ending-text');
+            textContainer.innerText = '';
+            
+            clearTimeout(typeTimeout);
+            isTyping = true;
+            let i = 0;
+            
+            function typeWriter() {
+                if (i < text.length) {
+                    textContainer.innerText += text.charAt(i);
+                    i++;
+                    typeTimeout = setTimeout(typeWriter, 50); // typing speed
+                } else {
+                    isTyping = false;
+                }
+            }
+            typeWriter();
+        }
+
+        document.getElementById('ending-screen').addEventListener('click', () => {
+            if (isTyping) {
+                // finish typing instantly
+                clearTimeout(typeTimeout);
+                document.getElementById('ending-text').innerText = endingData[currentSlide];
+                isTyping = false;
+            } else {
+                if (currentSlide < endingData.length - 1) {
+                    showSlide(currentSlide + 1);
+                } else {
+                    // end cutscene
+                    document.getElementById('ending-screen').style.opacity = 0;
+                    setTimeout(() => {
+                        document.getElementById('ending-screen').classList.remove('active');
+                        document.getElementById('ending-screen').style.display = 'none';
+                        showWinScreen();
+                    }, 1000);
+                }
+            }
+        });
+
+        function showWinScreen() {
             // Calculate time
             const startStr = localStorage.getItem('adventure_start');
             if (startStr) {
