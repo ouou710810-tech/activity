@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大冒險地圖</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #1a1a24;
+            color: #fff;
+            overflow: hidden;
+            touch-action: pan-x pan-y;
+        }
+
+        /* 1. 開場封面 */
+        #cover-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: url('../../cover.png') center center / cover no-repeat;
+            z-index: 5000;
+            cursor: pointer;
+            transition: opacity 1s ease-out;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            padding-bottom: 50px;
+        }
+        
+        #cover-screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .cover-hint {
+            background: rgba(0,0,0,0.6);
+            padding: 15px 30px;
+            border-radius: 30px;
+            font-size: 1.5rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+
+        /* 2. 大地圖 */
+        #map-screen {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .map-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 1200px;
+            max-height: 900px;
+            /* 讓地圖完整顯示，不裁切 */
+            background: url('../../map.png') center center / contain no-repeat;
+        }
+
+        /* 右上角資訊區 */
+        .top-right-ui {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+            z-index: 100;
+        }
+
+        .cert-info {
+            background: rgba(0,0,0,0.7);
+            border: 2px solid #ffb300;
+            color: #ffca28;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        #btn-clear {
+            background: #ffccbc;
+            color: #d84315;
+            border: 2px solid #ffab91;
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        #btn-clear:hover {
+            background: #ffab91;
+        }
+
+        /* 3. 透明熱區 */
+        .hotspot {
+            position: absolute;
+            cursor: pointer;
+            border-radius: 50%;
+            transition: background 0.3s, transform 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .hotspot:hover {
+            background: rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 20px 10px rgba(255, 255, 255, 0.3);
+            transform: scale(1.05);
+        }
+
+        /* 預設的相對位置 (需根據實際圖微調) */
+        #hotspot-dynasty { top: 20%; left: 20%; width: 15%; height: 15%; }
+        #hotspot-idiom   { top: 20%; left: 65%; width: 15%; height: 15%; }
+        #hotspot-warrior { top: 60%; left: 20%; width: 15%; height: 15%; }
+        #hotspot-door    { top: 60%; left: 65%; width: 15%; height: 15%; }
+
+        .check-stamp {
+            display: none;
+            color: #00e676;
+            font-size: 4rem;
+            text-shadow: 2px 2px 5px rgba(0,0,0,0.8);
+            font-weight: bold;
+            pointer-events: none;
+            transform: rotate(-15deg);
+        }
+
+        .completed .check-stamp {
+            display: block;
+        }
+
+        /* Modals */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background: #fff;
+            padding: 40px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+            border: 5px solid #4caf50;
+            color: #333;
+        }
+
+        .slots-container {
+            background: #cfd8dc;
+            padding: 20px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+            border: 2px inset #90a4ae;
+        }
+
+        .slot {
+            width: 100px;
+            height: 100px;
+            background: #eceff1;
+            border: 3px dashed #78909c;
+            border-radius: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #78909c;
+            transition: all 0.3s;
+        }
+
+        .slot.filled {
+            border-style: solid;
+            border-color: #4caf50;
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            font-size: 1.5rem;
+        }
+
+        .inventory {
+            background: #ffe082;
+            padding: 20px;
+            border-radius: 10px;
+            min-height: 150px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            border: 3px solid #ffb300;
+            position: relative;
+        }
+
+        .cert {
+            width: 90px;
+            height: 90px;
+            background: #fff;
+            border: 3px solid #ff8f00;
+            border-radius: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #e65100;
+            box-shadow: 0 5px 10px rgba(0,0,0,0.2);
+            cursor: grab;
+            touch-action: none;
+            position: relative;
+        }
+
+        .cert.dragging {
+            opacity: 0.8;
+            cursor: grabbing;
+            box-shadow: 0 15px 25px rgba(0,0,0,0.4);
+            transform: scale(1.1);
+        }
+
+        .cert.error {
+            animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+            border-color: #f44336;
+            color: #f44336;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-2px, 0, 0); }
+            20%, 80% { transform: translate3d(4px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-8px, 0, 0); }
+            40%, 60% { transform: translate3d(8px, 0, 0); }
+        }
+
+        .btn-action {
+            margin-top: 25px;
+            background: #9e9e9e;
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            font-size: 1.2rem;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn-action:hover {
+            background: #757575;
+        }
+
+        #btn-restart {
+            background: #4caf50;
+            font-size: 1.5rem;
+            padding: 15px 40px;
+            margin-top: 30px;
+        }
+        #btn-restart:hover {
+            background: #388e3c;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- 1. 開場封面 -->
+    <div id="cover-screen">
+        <div class="cover-hint">點擊任意處開始冒險</div>
+    </div>
+
+    <!-- 2. 大地圖 -->
+    <div id="map-screen">
+        <div class="map-container">
+            <!-- 3. 透明熱區 (先放預設位置，後續可依老師回報微調) -->
+            <div class="hotspot" id="hotspot-dynasty" onclick="location.href='../../織物配對遊戲/index.html'">
+                <div class="check-stamp">✓</div>
+            </div>
+            
+            <div class="hotspot" id="hotspot-idiom" onclick="location.href='../../示範2_成語填字/index.html'">
+                <div class="check-stamp">✓</div>
+            </div>
+            
+            <div class="hotspot" id="hotspot-warrior" onclick="location.href='../../示範3_打怪RPG/index.html'">
+                <div class="check-stamp">✓</div>
+            </div>
+
+            <div class="hotspot" id="hotspot-door" onclick="openDoorModal()">
+                <!-- 中央大門不顯示打勾 -->
+            </div>
+        </div>
+
+        <!-- 4. 右上角資訊區 -->
+        <div class="top-right-ui">
+            <div class="cert-info">目前持有：<span id="cert-count">0</span> / 3</div>
+            <button id="btn-clear">🔄 清除進度</button>
+        </div>
+    </div>
+
+    <!-- Door Modal -->
+    <div id="door-modal" class="modal">
+        <div class="modal-content">
+            <h2 style="color: #ff8f00; font-size: 2.5rem; margin-top: 0;">解鎖大門</h2>
+            <p style="color: #795548;">請將取得的憑證放入對應的凹槽中</p>
+            
+            <div class="slots-container">
+                <div class="slot empty" data-type="dynasty" id="slot-dynasty">朝代</div>
+                <div class="slot empty" data-type="idiom" id="slot-idiom">成語</div>
+                <div class="slot empty" data-type="warrior" id="slot-warrior">勇者</div>
+            </div>
+
+            <h3 style="color: #f57f17; margin: 0 0 10px 0;">🎒 憑證背包</h3>
+            <div class="inventory" id="inventory">
+                <!-- Certs injected here -->
+            </div>
+            
+            <button class="btn-action" onclick="closeDoorModal()">關閉</button>
+        </div>
+    </div>
+
+    <!-- Win Modal -->
+    <div id="win-modal" class="modal">
+        <div class="modal-content">
+            <h1 style="color: #fbc02d; font-size: 3.5rem; margin: 0;">🏆 冒險完成！</h1>
+            <h2 style="color: #4caf50;">恭喜你解開了大門！</h2>
+            <p style="font-size: 1.5rem; margin: 20px 0;">總冒險時長：<br><strong id="win-time" style="font-size: 2.5rem; color: #d84315;">00 分 00 秒</strong></p>
+            <button id="btn-restart" class="btn-action">🔄 再次冒險</button>
+        </div>
+    </div>
+
+    <script>
+        // Data config
+        const CERTS_INFO = {
+            'dynasty': { key: 'cert_dynasty', label: '朝代之印' },
+            'idiom': { key: 'cert_idiom', label: '成語之印' },
+            'warrior': { key: 'cert_warrior', label: '勇者之印' }
+        };
+
+        let certsHeld = [];
+        let placedCount = 0;
+
+        // Cover Screen Logic
+        const coverScreen = document.getElementById('cover-screen');
+        if (sessionStorage.getItem('seen_cover')) {
+            coverScreen.style.display = 'none';
+            initMap();
+        } else {
+            coverScreen.addEventListener('click', () => {
+                coverScreen.classList.add('hidden');
+                sessionStorage.setItem('seen_cover', 'true');
+                setTimeout(() => {
+                    coverScreen.style.display = 'none';
+                    initMap();
+                }, 1000); // Wait for fade out
+            });
+        }
+
+        // Initialize Map
+        function initMap() {
+            if (!localStorage.getItem('adventure_start')) {
+                localStorage.setItem('adventure_start', Date.now());
+            }
+
+            certsHeld = [];
+            let count = 0;
+
+            // Check each cert
+            for (const [type, info] of Object.entries(CERTS_INFO)) {
+                const hotspot = document.getElementById(`hotspot-${type}`);
+                if (localStorage.getItem(info.key) === 'true') {
+                    hotspot.classList.add('completed');
+                    certsHeld.push(type);
+                    count++;
+                } else {
+                    hotspot.classList.remove('completed');
+                }
+            }
+
+            document.getElementById('cert-count').innerText = count;
+        }
+
+        // Clear Progress
+        document.getElementById('btn-clear').addEventListener('click', () => {
+            if (confirm('確定要清除所有冒險進度嗎？這將會重置計時器並消除所有憑證。')) {
+                clearAllData();
+            }
+        });
+
+        // Restart Game (Win Screen)
+        document.getElementById('btn-restart').addEventListener('click', () => {
+            clearAllData();
+        });
+
+        function clearAllData() {
+            localStorage.removeItem('adventure_start');
+            localStorage.removeItem('cert_dynasty');
+            localStorage.removeItem('cert_idiom');
+            localStorage.removeItem('cert_warrior');
+            sessionStorage.removeItem('seen_cover');
+            location.reload();
+        }
+
+        // Open Door Modal
+        function openDoorModal() {
+            document.getElementById('door-modal').style.display = 'flex';
+            placedCount = 0;
+            
+            // Reset slots
+            document.querySelectorAll('.slot').forEach(slot => {
+                slot.className = 'slot empty';
+                let type = slot.dataset.type;
+                if(type === 'dynasty') slot.innerText = '朝代';
+                if(type === 'idiom') slot.innerText = '成語';
+                if(type === 'warrior') slot.innerText = '勇者';
+            });
+
+            // Populate Inventory
+            const inv = document.getElementById('inventory');
+            inv.innerHTML = '';
+            
+            if (certsHeld.length === 0) {
+                inv.innerHTML = '<div style="color: #a1887f; align-self: center;">背包空空如也...快去挑戰關卡吧！</div>';
+            } else {
+                certsHeld.forEach(type => {
+                    const el = document.createElement('div');
+                    el.className = 'cert';
+                    el.innerText = CERTS_INFO[type].label;
+                    el.dataset.type = type;
+                    el.addEventListener('pointerdown', onPointerDown);
+                    inv.appendChild(el);
+                });
+            }
+        }
+
+        function closeDoorModal() {
+            document.getElementById('door-modal').style.display = 'none';
+        }
+
+        // Custom Drag & Drop Logic
+        let draggedEl = null;
+        let startX = 0, startY = 0;
+
+        function onPointerDown(e) {
+            if (e.target.classList.contains('hidden')) return;
+
+            draggedEl = e.target;
+            startX = e.clientX;
+            startY = e.clientY;
+            
+            draggedEl.classList.add('dragging');
+            draggedEl.style.zIndex = 3000;
+            draggedEl.setPointerCapture(e.pointerId);
+
+            draggedEl.addEventListener('pointermove', onPointerMove);
+            draggedEl.addEventListener('pointerup', onPointerUp);
+        }
+
+        function onPointerMove(e) {
+            if (!draggedEl) return;
+            e.preventDefault();
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            draggedEl.style.transform = `translate(${dx}px, ${dy}px) scale(1.1)`;
+        }
+
+        function onPointerUp(e) {
+            if (!draggedEl) return;
+            draggedEl.releasePointerCapture(e.pointerId);
+            draggedEl.removeEventListener('pointermove', onPointerMove);
+            draggedEl.removeEventListener('pointerup', onPointerUp);
+
+            // Hide temporarily to find element underneath
+            draggedEl.style.visibility = 'hidden';
+            const elBelow = document.elementFromPoint(e.clientX, e.clientY);
+            draggedEl.style.visibility = 'visible';
+
+            let dropTarget = elBelow ? elBelow.closest('.slot') : null;
+            let success = false;
+
+            if (dropTarget && dropTarget.classList.contains('empty')) {
+                const requiredType = dropTarget.dataset.type;
+                const certType = draggedEl.dataset.type;
+
+                if (requiredType === certType) {
+                    success = true;
+                    dropTarget.classList.remove('empty');
+                    dropTarget.classList.add('filled');
+                    dropTarget.innerText = CERTS_INFO[certType].label + ' ✓';
+                    
+                    draggedEl.style.display = 'none';
+                    draggedEl.classList.add('hidden');
+                    
+                    placedCount++;
+                    
+                    if (placedCount === 3) {
+                        setTimeout(triggerWin, 500);
+                    }
+                }
+            }
+
+            if (!success) {
+                // Snap back and shake
+                draggedEl.classList.add('error');
+                setTimeout(() => {
+                    if (draggedEl) draggedEl.classList.remove('error');
+                }, 300);
+            }
+
+            resetDragState();
+        }
+
+        function resetDragState() {
+            if (draggedEl && !draggedEl.classList.contains('hidden')) {
+                draggedEl.classList.remove('dragging');
+                draggedEl.style.transform = `translate(0, 0)`;
+                draggedEl.style.zIndex = '';
+            }
+            draggedEl = null;
+        }
+
+        function triggerWin() {
+            document.getElementById('door-modal').style.display = 'none';
+            
+            // Calculate time
+            const startStr = localStorage.getItem('adventure_start');
+            if (startStr) {
+                const startTime = parseInt(startStr, 10);
+                const diffMs = Date.now() - startTime;
+                const totalSeconds = Math.floor(diffMs / 1000);
+                const m = Math.floor(totalSeconds / 60);
+                const s = totalSeconds % 60;
+                document.getElementById('win-time').innerText = `${m} 分 ${s} 秒`;
+            }
+
+            document.getElementById('win-modal').style.display = 'flex';
+        }
+
+    </script>
+</body>
+</html>

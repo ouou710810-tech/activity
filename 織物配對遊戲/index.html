@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>織物材質三向配對遊戲</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <a href="../示範作品/大冒險地圖/index.html" style="position: absolute; top: 20px; left: 20px; text-decoration: none; font-size: 1.2rem; background: #fff; padding: 10px 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); color: #ff7e67; font-weight: bold; z-index: 100;">← 回到大地圖</a>
+        <h1>🧵 織物材質三向配對遊戲 👗</h1>
+        <div class="stats">
+            <div class="score-board">分數: <span id="score">0</span></div>
+            <div class="timer-board">時間: <span id="time">0</span> 秒</div>
+        </div>
+    </header>
+
+    <main class="game-container">
+        <div class="column" id="col-material">
+            <h2>織物材質</h2>
+            <div class="cards-container" id="container-material"></div>
+        </div>
+        <div class="column" id="col-feature">
+            <h2>核心特性</h2>
+            <div class="cards-container" id="container-feature"></div>
+        </div>
+        <div class="column" id="col-clothes">
+            <h2>常見衣物</h2>
+            <div class="cards-container" id="container-clothes"></div>
+        </div>
+    </main>
+
+    <div class="modal" id="winModal">
+        <div class="modal-content">
+            <h2>🎉 恭喜通關！ 🎉</h2>
+            <p>你花了 <span id="finalTime">0</span> 秒完成挑戰！<br>最終分數：<span id="finalScore" style="color: #ff7e67; font-weight: bold;">0</span></p>
+            <button id="restartBtn">再玩一次</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

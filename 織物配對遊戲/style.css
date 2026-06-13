@@ -1,0 +1,223 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Nunito', 'Microsoft JhengHei', sans-serif;
+    background: linear-gradient(135deg, #fce3ec 0%, #ffe8d6 100%);
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    color: #4a4a4a;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+h1 {
+    font-size: 2.5rem;
+    color: #ff7e67;
+    text-shadow: 2px 2px 0px #fff;
+    margin: 0 0 15px 0;
+}
+
+.stats {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    font-size: 1.5rem;
+    font-weight: bold;
+}
+
+.score-board, .timer-board {
+    background: #fff;
+    padding: 10px 25px;
+    border-radius: 30px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    color: #6c5b7b;
+    border: 3px solid #f8b195;
+}
+
+.game-container {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+    max-width: 1200px;
+    flex: 1;
+}
+
+.column {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: 20px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    border: 2px solid #fff;
+}
+
+.column h2 {
+    text-align: center;
+    color: #c06c84;
+    margin-top: 0;
+    border-bottom: 3px dashed #f8b195;
+    padding-bottom: 15px;
+    font-size: 1.8rem;
+}
+
+.cards-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    flex: 1;
+}
+
+.card {
+    background: #fff;
+    border: 3px solid transparent;
+    border-radius: 15px;
+    padding: 20px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+    transition: all 0.2s ease;
+    font-size: 1.2rem;
+    line-height: 1.6;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100px;
+    user-select: none;
+    color: #555;
+    font-weight: bold;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 15px rgba(0,0,0,0.12);
+}
+
+/* 狀態樣式 */
+.card.selected {
+    border-color: #ffc107;
+    background-color: #fffde7;
+    box-shadow: 0 0 15px rgba(255, 193, 7, 0.6);
+    transform: scale(1.02);
+    color: #d84315;
+}
+
+.card.correct {
+    animation: correctAnim 0.6s ease forwards;
+}
+
+.card.wrong {
+    animation: wrongAnim 0.5s ease;
+}
+
+.card.hidden {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: visibility 0s 0.6s, opacity 0.6s linear; /* Smooth fade out if needed, handled by anim mostly */
+}
+
+@keyframes correctAnim {
+    0% { background-color: #c8e6c9; border-color: #4caf50; transform: scale(1); color: #2e7d32; }
+    50% { background-color: #a5d6a7; border-color: #4caf50; transform: scale(1.05); box-shadow: 0 0 20px rgba(76, 175, 80, 0.6); }
+    100% { transform: scale(0.8); opacity: 0; }
+}
+
+@keyframes wrongAnim {
+    0%, 100% { transform: translateX(0); background-color: #fff; }
+    20%, 60% { transform: translateX(-10px); background-color: #ffcdd2; border-color: #f44336; color: #c62828;}
+    40%, 80% { transform: translateX(10px); background-color: #ffcdd2; border-color: #f44336; color: #c62828;}
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.4);
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+}
+
+.modal-content {
+    background: #fff;
+    padding: 50px;
+    border-radius: 30px;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 5px solid #f8b195;
+    max-width: 90%;
+}
+
+@keyframes popIn {
+    0% { transform: scale(0.5); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.modal h2 {
+    color: #f67280;
+    font-size: 3rem;
+    margin-top: 0;
+    text-shadow: 2px 2px 0px #ffe6ea;
+}
+
+.modal p {
+    font-size: 1.8rem;
+    color: #6c5b7b;
+    line-height: 1.5;
+}
+
+button {
+    background-color: #f8b195;
+    color: white;
+    border: none;
+    padding: 15px 50px;
+    font-size: 1.8rem;
+    font-weight: bold;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 8px 15px rgba(248, 177, 149, 0.4);
+    transition: all 0.2s;
+    font-family: inherit;
+    margin-top: 25px;
+}
+
+button:hover {
+    background-color: #f67280;
+    transform: translateY(-3px);
+    box-shadow: 0 12px 20px rgba(246, 114, 128, 0.4);
+}
+
+button:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 5px rgba(246, 114, 128, 0.4);
+}
+
+/* 響應式 */
+@media (max-width: 900px) {
+    .game-container {
+        flex-direction: column;
+        overflow-y: auto;
+    }
+    .column {
+        min-height: auto;
+    }
+    h1 {
+        font-size: 2rem;
+    }
+}

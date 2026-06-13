@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>國中成語填字遊戲</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            touch-action: pan-x pan-y; /* Allow default scroll on body except where disabled */
+        }
+
+        body {
+            font-family: 'Noto Serif TC', serif;
+            /* 米黃宣紙色 + 淡淡雜訊紋理 */
+            background-color: #f4ecd8;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' opacity='0.08'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)'/%3E%3C/svg%3E");
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            color: #3e2723;
+            overflow-x: hidden;
+            user-select: none;
+        }
+
+        header {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        h1 {
+            font-size: 3rem;
+            color: #8d6e63;
+            margin: 10px 0;
+            text-shadow: 2px 2px 0px rgba(255,255,255,0.5);
+            border-bottom: 2px solid #8d6e63;
+            padding-bottom: 10px;
+        }
+
+        .status-bar {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #5d4037;
+            margin-bottom: 20px;
+        }
+
+        .idiom-display {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 40px;
+        }
+
+        .char-box {
+            width: 100px;
+            height: 100px;
+            border: 4px solid #b71c1c; /* 紅框 */
+            font-size: 60px;
+            font-weight: 900;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #fff9c4; /* 淡黃底 */
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            position: relative;
+        }
+
+        .char-box.empty {
+            background-color: transparent;
+            /* 米字格特效 */
+            background-image: 
+                linear-gradient(45deg, transparent 48%, rgba(183, 28, 28, 0.4) 48%, rgba(183, 28, 28, 0.4) 52%, transparent 52%),
+                linear-gradient(-45deg, transparent 48%, rgba(183, 28, 28, 0.4) 48%, rgba(183, 28, 28, 0.4) 52%, transparent 52%),
+                linear-gradient(to right, transparent 48%, rgba(183, 28, 28, 0.4) 48%, rgba(183, 28, 28, 0.4) 52%, transparent 52%),
+                linear-gradient(to bottom, transparent 48%, rgba(183, 28, 28, 0.4) 48%, rgba(183, 28, 28, 0.4) 52%, transparent 52%);
+            color: transparent;
+        }
+
+        .char-box.filled {
+            background-color: #fff9c4;
+            color: #b71c1c; /* 答對填入的字變紅色（印章感） */
+            background-image: none;
+            animation: popIn 0.3s ease-out;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .cards-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            max-width: 600px;
+            width: 100%;
+            padding: 20px;
+            background: rgba(255,255,255,0.4);
+            border-radius: 15px;
+            border: 2px dashed #a1887f;
+        }
+
+        .card {
+            width: 80px;
+            height: 80px;
+            background: #f5f5dc; /* 淺色木紋感/米色 */
+            border: 2px solid #8d6e63;
+            border-radius: 10px;
+            font-size: 45px;
+            font-weight: bold;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: grab;
+            box-shadow: 2px 4px 6px rgba(0,0,0,0.15);
+            transition: transform 0.2s, box-shadow 0.2s;
+            touch-action: none; /* Crucial for custom pointer drag */
+            position: relative;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 2px 6px 10px rgba(0,0,0,0.2);
+        }
+
+        .card.dragging {
+            cursor: grabbing;
+            transition: none; /* Follow pointer instantly */
+            opacity: 0.9;
+            box-shadow: 5px 10px 20px rgba(0,0,0,0.3);
+        }
+
+        .card.error {
+            animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+            border-color: #f44336;
+            background-color: #ffcdd2;
+        }
+
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+
+        /* Message Overlay */
+        .message-area {
+            margin-top: 20px;
+            text-align: center;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .message-area.show {
+            opacity: 1;
+        }
+
+        .success-text {
+            color: #2e7d32;
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .idiom-meaning {
+            font-size: 1.2rem;
+            color: #4e342e;
+            background: rgba(255,255,255,0.7);
+            padding: 10px 20px;
+            border-radius: 8px;
+            max-width: 600px;
+            border-left: 5px solid #8d6e63;
+        }
+
+        .btn {
+            margin-top: 15px;
+            background: #8d6e63;
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            font-size: 1.5rem;
+            border-radius: 30px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: background 0.2s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            background: #6d4c41;
+        }
+
+        /* Modal for Final Score */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background: #f4ecd8;
+            padding: 40px;
+            border-radius: 10px;
+            border: 4px solid #8d6e63;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .modal h2 {
+            color: #b71c1c;
+            font-size: 2.5rem;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <a href="../示範作品/大冒險地圖/index.html" style="position: absolute; top: 20px; left: 20px; text-decoration: none; font-size: 1.2rem; background: #fff; padding: 10px 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); color: #8d6e63; font-weight: bold; z-index: 100;">← 回到大地圖</a>
+        <h1>📜 成語填字遊戲 🖌️</h1>
+        <div class="status-bar" id="statusBar">進度: 0 / 5</div>
+    </header>
+
+    <div class="idiom-display" id="idiomDisplay">
+        <!-- Boxes injected by JS -->
+    </div>
+
+    <div class="cards-container" id="cardsContainer">
+        <!-- Cards injected by JS -->
+    </div>
+
+    <div class="message-area" id="messageArea">
+        <div class="success-text">✓ 答對！</div>
+        <div class="idiom-meaning" id="idiomMeaning"></div>
+        <button class="btn" id="nextBtn">下一題</button>
+    </div>
+
+    <div class="modal" id="finalModal">
+        <div class="modal-content">
+            <h2>🎉 挑戰完成 🎉</h2>
+            <p style="font-size: 1.5rem; color: #4e342e;">你已經完成了所有成語填字！</p>
+            <button class="btn" onclick="startNewGame()">重新挑戰</button>
+        </div>
+    </div>
+
+    <script>
+        const QUESTIONS_DB = [
+            { 成語: '一鳴驚人', 缺字: [1, 2], 答案: ['鳴', '驚'], 意思: '比喻平時默默無聞，突然有驚人表現。' },
+            { 成語: '風花雪月', 缺字: [1, 3], 答案: ['花', '月'], 意思: '原指四時景色，後比喻浮華空洞的詩文。' },
+            { 成語: '三番五次', 缺字: [1, 3], 答案: ['番', '次'], 意思: '形容次數很多。' },
+            { 成語: '一字千金', 缺字: [1, 3], 答案: ['字', '金'], 意思: '形容文字價值極高。' },
+            { 成語: '畫龍點睛', 缺字: [1, 3], 答案: ['龍', '睛'], 意思: '比喻在關鍵處點明要旨。' },
+            { 成語: '半途而廢', 缺字: [1, 3], 答案: ['途', '廢'], 意思: '指事情做了一半就停止，比喻凡事沒有堅持到底。' },
+            { 成語: '刻舟求劍', 缺字: [1, 3], 答案: ['舟', '劍'], 意思: '比喻拘泥固執，不知變通。' },
+            { 成語: '井底之蛙', 缺字: [1, 3], 答案: ['底', '蛙'], 意思: '比喻見識狹淺的人。' },
+            { 成語: '守株待兔', 缺字: [1, 3], 答案: ['株', '兔'], 意思: '比喻拘泥守成，不知變通，或妄想不勞而獲。' },
+            { 成語: '自相矛盾', 缺字: [1, 3], 答案: ['相', '盾'], 意思: '比喻言語或行事前後不一，互相牴觸。' },
+            { 成語: '杯弓蛇影', 缺字: [1, 3], 答案: ['弓', '影'], 意思: '比喻為不存在的事物而徒自驚擾。' },
+            { 成語: '掩耳盜鈴', 缺字: [1, 3], 答案: ['耳', '鈴'], 意思: '比喻自欺欺人。' },
+            { 成語: '盲人摸象', 缺字: [1, 3], 答案: ['人', '象'], 意思: '比喻以偏概全，不能了解真相。' },
+            { 成語: '亡羊補牢', 缺字: [1, 3], 答案: ['羊', '牢'], 意思: '比喻犯錯後及時更正，尚能補救。' }
+        ];
+
+        const DISTRACTORS = "山川日月草木風雲雨雪金石土田人手口目耳心身子牛羊馬犬鳥魚蟲弓矢刀車船衣食左右上下大小長短高中低內外前後秋冬紅白黑黃藍綠紫天地理氣道法術功德仁義禮智信忠孝節勇溫良恭儉讓";
+
+        let currentGameQuestions = [];
+        let currentQuestionIndex = 0;
+        let filledCount = 0;
+
+        // DOM elements
+        const statusBar = document.getElementById('statusBar');
+        const idiomDisplay = document.getElementById('idiomDisplay');
+        const cardsContainer = document.getElementById('cardsContainer');
+        const messageArea = document.getElementById('messageArea');
+        const idiomMeaning = document.getElementById('idiomMeaning');
+        const nextBtn = document.getElementById('nextBtn');
+        const finalModal = document.getElementById('finalModal');
+
+        // Audio System
+        let audioCtx;
+        function playSound(type) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'correct') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                osc.frequency.exponentialRampToValueAtTime(1500, now + 0.1);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.start(now);
+                osc.stop(now + 0.3);
+            }
+        }
+
+        // Utils
+        function shuffle(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex != 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        function getRandomDistractors(count) {
+            let arr = DISTRACTORS.split('');
+            shuffle(arr);
+            return arr.slice(0, count);
+        }
+
+        // Game Flow
+        function startNewGame() {
+            finalModal.style.display = 'none';
+            // Pick 5 questions
+            let shuffledDB = shuffle([...QUESTIONS_DB]);
+            currentGameQuestions = shuffledDB.slice(0, 5);
+            currentQuestionIndex = 0;
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            filledCount = 0;
+            messageArea.classList.remove('show');
+            statusBar.innerText = `進度: ${currentQuestionIndex + 1} / 5`;
+            
+            const q = currentGameQuestions[currentQuestionIndex];
+            idiomDisplay.innerHTML = '';
+            cardsContainer.innerHTML = '';
+
+            // Render Idiom Boxes
+            for (let i = 0; i < 4; i++) {
+                const box = document.createElement('div');
+                box.className = 'char-box';
+                
+                if (q.缺字.includes(i)) {
+                    box.classList.add('empty');
+                    // Find which answer it expects
+                    const ansIdx = q.缺字.indexOf(i);
+                    box.dataset.answer = q.答案[ansIdx];
+                } else {
+                    box.innerText = q.成語[i];
+                }
+                idiomDisplay.appendChild(box);
+            }
+
+            // Prepare 15 Cards
+            let cardsData = [...q.答案];
+            cardsData = cardsData.concat(getRandomDistractors(13));
+            shuffle(cardsData);
+
+            cardsData.forEach(char => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerText = char;
+                card.addEventListener('pointerdown', onPointerDown);
+                cardsContainer.appendChild(card);
+            });
+        }
+
+        // Custom Drag and Drop Logic
+        let draggedEl = null;
+        let startX = 0, startY = 0;
+
+        function onPointerDown(e) {
+            if (e.target.classList.contains('hidden')) return;
+            // init audio on first touch
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            draggedEl = e.target;
+            startX = e.clientX;
+            startY = e.clientY;
+            draggedEl.classList.add('dragging');
+            draggedEl.style.zIndex = 1000;
+            draggedEl.setPointerCapture(e.pointerId);
+
+            draggedEl.addEventListener('pointermove', onPointerMove);
+            draggedEl.addEventListener('pointerup', onPointerUp);
+        }
+
+        function onPointerMove(e) {
+            if (!draggedEl) return;
+            e.preventDefault();
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            draggedEl.style.transform = `translate(${dx}px, ${dy}px)`;
+        }
+
+        function onPointerUp(e) {
+            if (!draggedEl) return;
+            draggedEl.releasePointerCapture(e.pointerId);
+            draggedEl.removeEventListener('pointermove', onPointerMove);
+            draggedEl.removeEventListener('pointerup', onPointerUp);
+
+            // Hide dragged to find drop target below
+            draggedEl.style.visibility = 'hidden';
+            const elBelow = document.elementFromPoint(e.clientX, e.clientY);
+            draggedEl.style.visibility = 'visible';
+
+            let dropTarget = elBelow ? elBelow.closest('.empty') : null;
+
+            if (dropTarget && !dropTarget.classList.contains('filled')) {
+                const expected = dropTarget.dataset.answer;
+                const char = draggedEl.innerText;
+
+                if (char === expected) {
+                    // Match Correct!
+                    playSound('correct');
+                    dropTarget.innerText = char;
+                    dropTarget.classList.add('filled');
+                    dropTarget.classList.remove('empty');
+                    
+                    draggedEl.style.visibility = 'hidden'; // Hide the card
+                    draggedEl.classList.add('hidden'); // Logic state
+                    
+                    filledCount++;
+                    if (filledCount === 2) {
+                        levelComplete();
+                    }
+                } else {
+                    // Wrong char
+                    dragErrorFeedback();
+                }
+            } else {
+                // Dropped outside
+                dragErrorFeedback();
+            }
+
+            resetDragState();
+        }
+
+        function dragErrorFeedback() {
+            draggedEl.classList.add('error');
+            setTimeout(() => {
+                if(draggedEl) draggedEl.classList.remove('error');
+            }, 300);
+        }
+
+        function resetDragState() {
+            if (draggedEl && !draggedEl.classList.contains('hidden')) {
+                draggedEl.classList.remove('dragging');
+                draggedEl.style.transform = `translate(0, 0)`;
+                draggedEl.style.zIndex = '';
+            }
+            draggedEl = null;
+        }
+
+        function levelComplete() {
+            const q = currentGameQuestions[currentQuestionIndex];
+            idiomMeaning.innerText = `意思：${q.意思}`;
+            messageArea.classList.add('show');
+        }
+
+        nextBtn.addEventListener('click', () => {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < 5) {
+                loadQuestion();
+            } else {
+                localStorage.setItem('cert_idiom', 'true');
+                finalModal.style.display = 'flex';
+            }
+        });
+
+        // Init
+        window.onload = startNewGame;
+    </script>
+</body>
+</html>

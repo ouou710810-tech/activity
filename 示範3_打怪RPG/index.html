@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>打怪 RPG 進階版</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #1a1a24;
+            color: #fff;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        #app {
+            width: 100%;
+            max-width: 800px;
+            height: 100vh;
+            background-color: #2a2a35;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        /* Loading Screen */
+        #loading-screen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            background-color: #1a1a24;
+            z-index: 100;
+        }
+        .spinner {
+            width: 50px; height: 50px;
+            border: 5px solid #444;
+            border-top: 5px solid #ff9800;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 20px;
+            background-color: #111;
+            border-bottom: 2px solid #444;
+            z-index: 10;
+        }
+
+        .gold-display {
+            font-size: 1.5rem;
+            color: #ffd700;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+        
+        .gold-display.bounce {
+            animation: bounce 0.3s ease;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-5px) scale(1.2); }
+        }
+
+        .btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1.1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            box-shadow: 0 4px 0 #2E7D32;
+            transition: transform 0.1s;
+        }
+        .btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #2E7D32;
+        }
+        .btn.disabled {
+            background-color: #777;
+            box-shadow: 0 4px 0 #444;
+            pointer-events: none;
+        }
+
+        /* Screens */
+        .screen {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            position: relative;
+        }
+        .screen.active {
+            display: flex;
+        }
+
+        /* Battle Screen */
+        .battle-arena {
+            flex: 1;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background: linear-gradient(to bottom, #2b4c7e 0%, #1a1a24 100%);
+            padding: 20px;
+        }
+
+        .entity {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .sprite {
+            font-size: 80px;
+            filter: drop-shadow(0 10px 10px rgba(0,0,0,0.5));
+            transition: transform 0.1s;
+        }
+
+        .hp-container {
+            width: 150px;
+            background: #222;
+            border: 3px solid #555;
+            border-radius: 10px;
+            margin-top: 15px;
+            position: relative;
+            height: 25px;
+            overflow: hidden;
+        }
+
+        .hp-fill {
+            height: 100%;
+            background: #4CAF50; /* Green */
+            width: 100%;
+            transition: width 0.3s ease, background-color 0.3s;
+        }
+
+        .hp-text {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            text-align: center;
+            font-size: 14px;
+            line-height: 19px;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 1px 1px 2px #000;
+        }
+
+        .hp-fill.yellow { background: #ffeb3b; }
+        .hp-fill.red { 
+            background: #f44336; 
+            animation: blink 0.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .question-panel {
+            background-color: #333;
+            border-top: 4px solid #555;
+            padding: 20px;
+            min-height: 250px;
+            position: relative;
+        }
+
+        .question-text {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            line-height: 1.5;
+            text-align: center;
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .option-btn {
+            background-color: #4a6fa5;
+            color: white;
+            border: 2px solid #2b4c7e;
+            padding: 15px;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-family: inherit;
+        }
+        .option-btn:hover { background-color: #5c84c1; }
+
+        .correct-answer-reveal {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(244, 67, 54, 0.9);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            font-size: 1.5rem;
+            z-index: 10;
+        }
+
+        /* Animations */
+        @keyframes flashGreen {
+            0%, 100% { background-color: #1a1a24; }
+            50% { background-color: #4CAF50; }
+        }
+        @keyframes flashRedCrit {
+            0%, 100% { background-color: #1a1a24; }
+            50% { background-color: #f44336; }
+        }
+        @keyframes shakeScreen {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-10px); }
+            40% { transform: translateX(10px); }
+            60% { transform: translateX(-10px); }
+            80% { transform: translateX(10px); }
+        }
+
+        .flash-green { animation: flashGreen 0.2s; }
+        .flash-red-crit { animation: flashRedCrit 0.3s; }
+        .shake { animation: shakeScreen 0.3s; }
+
+        .crit-text {
+            position: absolute;
+            color: #ff5252;
+            font-family: 'VT323', monospace;
+            font-size: 60px;
+            font-weight: bold;
+            text-shadow: 4px 4px 0 #000;
+            pointer-events: none;
+            animation: floatUp 1s forwards;
+            z-index: 20;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(0.5); opacity: 0; }
+            20% { transform: translateY(-20px) scale(1.2); opacity: 1; }
+            100% { transform: translateY(-80px) scale(1); opacity: 0; }
+        }
+
+        /* Shop Screen */
+        .shop-bg {
+            background: url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100' height='100' fill='%235d4037'/%3E%3Cpath d='M0 20 L100 20 M0 40 L100 40 M0 60 L100 60 M0 80 L100 80' stroke='%234e342e' stroke-width='2'/%3E%3C/svg%3E");
+            flex: 1;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-y: auto;
+        }
+
+        .shop-title {
+            font-size: 2.5rem;
+            color: #ffb300;
+            text-shadow: 2px 2px 4px #000;
+            margin-bottom: 20px;
+        }
+
+        .shop-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .shop-item {
+            background: #fff8e1;
+            color: #3e2723;
+            width: 200px;
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            border: 4px solid #8d6e63;
+        }
+
+        .shop-item h3 { margin: 0 0 10px 0; font-size: 1.4rem; }
+        .shop-item p { font-size: 0.9rem; margin: 10px 0; min-height: 40px; }
+        .shop-item .price { font-weight: bold; color: #e65100; font-size: 1.2rem; }
+
+        /* Modals */
+        .modal {
+            display: none;
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            flex-direction: column;
+        }
+        
+        .modal.active { display: flex; }
+
+        .modal-box {
+            background: #333;
+            border: 2px solid #555;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 300px;
+        }
+
+        .game-over-bg {
+            background-color: #880000;
+            color: #ffaaaa;
+        }
+
+        /* Bag */
+        .bag-items {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .bag-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #444;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 1.2rem;
+        }
+
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <a href="../示範作品/大冒險地圖/index.html" style="position: absolute; top: 10px; left: 10px; z-index: 200; text-decoration: none; color: white; background: rgba(0,0,0,0.5); padding: 8px 12px; border-radius: 5px; font-weight: bold;">← 回到大地圖</a>
+    <!-- Loading -->
+    <div id="loading-screen" class="screen active">
+        <div class="spinner"></div>
+        <h2 style="margin-top: 20px;">讀取題庫中...</h2>
+    </div>
+
+    <!-- Header -->
+    <header id="game-header" style="display:none;">
+        <div class="gold-display" id="gold-ui">💰 <span id="gold">0</span></div>
+        <button class="btn" id="btn-bag" style="background-color: #8d6e63; box-shadow: 0 4px 0 #5d4037;">🎒 背包</button>
+    </header>
+
+    <!-- Battle -->
+    <div id="battle-screen" class="screen">
+        <div class="battle-arena" id="arena">
+            <div class="entity player">
+                <div class="sprite">🧑‍🚀</div>
+                <div class="hp-container">
+                    <div class="hp-fill" id="player-hp-fill"></div>
+                    <div class="hp-text"><span id="player-hp">100</span>/100</div>
+                </div>
+                <div style="margin-top: 5px; color: #aaa;">探險隊</div>
+            </div>
+            
+            <div class="entity monster">
+                <div class="sprite" id="monster-sprite">🐺</div>
+                <div class="hp-container">
+                    <div class="hp-fill" id="monster-hp-fill"></div>
+                    <div class="hp-text"><span id="monster-hp">100</span>/100</div>
+                </div>
+                <div style="margin-top: 5px; color: #ff5252; font-weight: bold;" id="monster-name">野狼</div>
+            </div>
+        </div>
+
+        <div class="question-panel">
+            <div class="question-text" id="question-text">題目載入中...</div>
+            <div class="options-grid" id="options-grid">
+                <!-- Options -->
+            </div>
+            
+            <div class="correct-answer-reveal" id="answer-reveal">
+                <div style="font-size: 3rem; margin-bottom: 10px;">❌ 答錯了！</div>
+                <div>正確答案是：<br><strong id="reveal-text" style="color:#ffeb3b; font-size: 2rem;"></strong></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shop -->
+    <div id="shop-screen" class="screen">
+        <div class="shop-bg">
+            <h1 class="shop-title">神秘商人</h1>
+            <p style="margin-bottom: 30px; font-size: 1.2rem;">「勇者啊，買點道具再上路吧！」</p>
+            
+            <div class="shop-items">
+                <div class="shop-item">
+                    <h3>🧪 紅藥水</h3>
+                    <p>回復 50 HP (戰鬥中可用)</p>
+                    <div class="price">30 金幣</div>
+                    <button class="btn" style="margin-top: 10px;" onclick="buyItem('potion', 30)">購買</button>
+                </div>
+                <div class="shop-item">
+                    <h3>💎 攻擊水晶</h3>
+                    <p>自動生效：下一題答對暴擊 -50 HP</p>
+                    <div class="price">40 金幣</div>
+                    <button class="btn" style="margin-top: 10px;" onclick="buyItem('crystal', 40)">購買</button>
+                </div>
+                <div class="shop-item">
+                    <h3>🛡️ 救命符</h3>
+                    <p>HP歸零時自動消耗，以 1 HP 復活</p>
+                    <div class="price">80 金幣</div>
+                    <button class="btn" style="margin-top: 10px;" onclick="buyItem('charm', 80)">購買</button>
+                </div>
+            </div>
+
+            <button class="btn" style="margin-top: 50px; font-size: 1.5rem; padding: 15px 40px;" onclick="nextStage()">前往下一關 ➡️</button>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="bag-modal" class="modal">
+        <div class="modal-box" style="width: 80%; max-width: 400px;">
+            <h2>🎒 背包</h2>
+            <div class="bag-items">
+                <div class="bag-item">
+                    <span>🧪 紅藥水 x <span id="bag-potions">0</span></span>
+                    <button class="btn" id="use-potion-btn" onclick="usePotion()">使用</button>
+                </div>
+                <div class="bag-item">
+                    <span>💎 攻擊水晶 x <span id="bag-crystals">0</span></span>
+                    <span style="font-size: 0.9rem; color: #aaa;">自動生效</span>
+                </div>
+                <div class="bag-item">
+                    <span>🛡️ 救命符 x <span id="bag-charms">0</span></span>
+                    <span style="font-size: 0.9rem; color: #aaa;">自動生效</span>
+                </div>
+            </div>
+            <button class="btn" style="margin-top: 20px; background-color: #555;" onclick="closeBag()">關閉</button>
+        </div>
+    </div>
+
+    <div id="revive-modal" class="modal">
+        <div class="modal-box">
+            <h2>🛡️ 救命符發動！</h2>
+            <p>免於一死，以 1 HP 復活繼續戰鬥！</p>
+            <button class="btn" onclick="document.getElementById('revive-modal').classList.remove('active'); nextQuestion();">繼續</button>
+        </div>
+    </div>
+
+    <div id="game-over-modal" class="modal">
+        <div class="modal-box game-over-bg">
+            <h1 style="font-size: 3rem; margin: 0;">GAME OVER</h1>
+            <p>探險隊全滅了...</p>
+            <button class="btn" style="margin-top: 20px;" onclick="location.reload()">重新開始</button>
+        </div>
+    </div>
+
+    <div id="stage-fail-modal" class="modal">
+        <div class="modal-box">
+            <h2 style="color: #f44336;">戰鬥失敗</h2>
+            <p>你以 1 HP 狼狽地逃回起點...<br>必須重新挑戰本關！</p>
+            <button class="btn" onclick="restartStage()">重試</button>
+        </div>
+    </div>
+
+    <div id="win-modal" class="modal">
+        <div class="modal-box" style="background: #2E7D32;">
+            <h1 style="font-size: 3rem; margin: 0; color: #ffeb3b;">🎉 通關成功 🎉</h1>
+            <p style="font-size: 1.2rem;">你擊敗了魔王，成功拯救了世界！</p>
+            <div style="text-align: left; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <div>正確答題數：<span id="win-correct">0</span> 題</div>
+                <div>剩餘金幣：<span id="win-gold">0</span></div>
+                <div>消耗紅藥水：<span id="win-potions">0</span> 瓶</div>
+            </div>
+            <button class="btn" onclick="location.reload()">再玩一次</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    // --- State ---
+    let state = {
+        hp: 100,
+        maxHp: 100,
+        gold: 0,
+        potions: 0,
+        crystals: 0,
+        charms: 0,
+        stage: 0,
+        monsterHp: 100,
+        maxMonsterHp: 100,
+        questions: [],
+        currentQ: null,
+        stats: {
+            correct: 0,
+            potionsUsed: 0
+        }
+    };
+
+    const MONSTERS = [
+        { name: "野狼", sprite: "🐺", maxHp: 100 },
+        { name: "毒蠍", sprite: "🦂", maxHp: 100 },
+        { name: "惡鬼", sprite: "👹", maxHp: 100 },
+        { name: "巨龍", sprite: "🐲", maxHp: 100 },
+        { name: "魔王", sprite: "👑", maxHp: 100 }
+    ];
+
+    const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRMMMBiO-z_okWIti9ZfstXiXnCKi9-VX81uNdMNSPn677BPz0rqz4VASaOpV2a2y_UT3WHcpq2wGNX/pub?output=csv";
+    
+    const FALLBACK_QS = [
+        { q: "這是內建範例題，請問 1+1=?", a: "2", wrong: ["3","4","5"] },
+        { q: "台灣的修辭學中，「黑夜給了我黑色的眼睛，我卻用它尋找光明」是?", a: "轉化", wrong: ["譬喻","排比","誇飾"] },
+        { q: "下列何者是世界最長的河流?", a: "尼羅河", wrong: ["亞馬遜河","長江","密西西比河"] },
+        { q: "元素週期表的第一個元素是?", a: "氫", wrong: ["氧","碳","氦"] },
+        { q: "哪顆行星距離太陽最近?", a: "水星", wrong: ["金星","火星","地球"] }
+    ];
+
+    // --- Init & Fetch ---
+    window.onload = async () => {
+        try {
+            const res = await fetch(CSV_URL);
+            if(!res.ok) throw new Error("Fetch failed");
+            const text = await res.text();
+            parseCSV(text);
+        } catch (e) {
+            console.warn("Using fallback questions", e);
+            state.questions = [...FALLBACK_QS];
+        }
+
+        if(state.questions.length === 0) {
+            state.questions = [...FALLBACK_QS];
+        }
+
+        document.getElementById('loading-screen').classList.remove('active');
+        document.getElementById('game-header').style.display = 'flex';
+        startStage();
+    };
+
+    function parseCSV(csvText) {
+        const lines = csvText.split('\n').map(l => l.trim()).filter(l => l);
+        lines.shift(); // remove header
+        state.questions = lines.map(line => {
+            // Simple split handle commas in quotes
+            const parts = parseCSVRow(line);
+            const q = parts[0];
+            const a = parts[1];
+            const wrong = parts.slice(2).filter(x => x.trim() !== '');
+            return { q, a, wrong };
+        }).filter(item => item.q && item.a);
+    }
+
+    function parseCSVRow(text) {
+        let result = [];
+        let cur = '';
+        let inQuotes = false;
+        for(let i=0; i<text.length; i++) {
+            let c = text[i];
+            if (c === '"') {
+                inQuotes = !inQuotes;
+            } else if (c === ',' && !inQuotes) {
+                result.push(cur);
+                cur = '';
+            } else {
+                cur += c;
+            }
+        }
+        result.push(cur);
+        return result;
+    }
+
+    // --- UI Updaters ---
+    function updateUI() {
+        document.getElementById('gold').innerText = state.gold;
+        
+        // Player HP
+        document.getElementById('player-hp').innerText = state.hp;
+        const pFill = document.getElementById('player-hp-fill');
+        const pPercent = (state.hp / state.maxHp) * 100;
+        pFill.style.width = pPercent + '%';
+        pFill.className = 'hp-fill';
+        if (pPercent < 20) pFill.classList.add('red');
+        else if (pPercent < 50) pFill.classList.add('yellow');
+
+        // Monster HP
+        document.getElementById('monster-hp').innerText = state.monsterHp;
+        const mFill = document.getElementById('monster-hp-fill');
+        const mPercent = (state.monsterHp / state.maxMonsterHp) * 100;
+        mFill.style.width = mPercent + '%';
+        
+        // Bag counts
+        document.getElementById('bag-potions').innerText = state.potions;
+        document.getElementById('bag-crystals').innerText = state.crystals;
+        document.getElementById('bag-charms').innerText = state.charms;
+
+        document.getElementById('use-potion-btn').className = `btn ${state.potions > 0 && state.hp < state.maxHp ? '' : 'disabled'}`;
+    }
+
+    function addGold(amount) {
+        state.gold += amount;
+        const ui = document.getElementById('gold-ui');
+        ui.classList.remove('bounce');
+        void ui.offsetWidth; // trigger reflow
+        ui.classList.add('bounce');
+        updateUI();
+    }
+
+    // --- Game Logic ---
+    function startStage() {
+        if (state.stage >= 5) {
+            winGame();
+            return;
+        }
+        
+        const m = MONSTERS[state.stage];
+        state.monsterHp = m.maxHp;
+        state.maxMonsterHp = m.maxHp;
+        
+        document.getElementById('monster-name').innerText = m.name;
+        document.getElementById('monster-sprite').innerText = m.sprite;
+        
+        showScreen('battle-screen');
+        updateUI();
+        nextQuestion();
+    }
+
+    function restartStage() {
+        document.getElementById('stage-fail-modal').classList.remove('active');
+        state.hp = 1;
+        startStage();
+    }
+
+    function nextQuestion() {
+        // Pick random question
+        const q = state.questions[Math.floor(Math.random() * state.questions.length)];
+        state.currentQ = q;
+        
+        document.getElementById('question-text').innerText = q.q;
+        
+        let opts = [{ text: q.a, correct: true }];
+        q.wrong.forEach(w => opts.push({ text: w, correct: false }));
+        
+        // Shuffle options
+        opts.sort(() => Math.random() - 0.5);
+        
+        const grid = document.getElementById('options-grid');
+        grid.innerHTML = '';
+        opts.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerText = opt.text;
+            btn.onclick = () => handleAnswer(opt.correct, btn);
+            grid.appendChild(btn);
+        });
+    }
+
+    function handleAnswer(isCorrect, btn) {
+        // Disable all buttons to prevent double click
+        const btns = document.querySelectorAll('.option-btn');
+        btns.forEach(b => b.style.pointerEvents = 'none');
+
+        if (isCorrect) {
+            state.stats.correct++;
+            addGold(5);
+            
+            let dmg = 25;
+            let isCrit = false;
+            
+            if (state.crystals > 0) {
+                state.crystals--;
+                dmg = 50;
+                isCrit = true;
+            }
+
+            state.monsterHp = Math.max(0, state.monsterHp - dmg);
+            updateUI();
+
+            const arena = document.getElementById('arena');
+            if (isCrit) {
+                arena.classList.add('flash-red-crit');
+                showCritText();
+            } else {
+                arena.classList.add('flash-green');
+            }
+            
+            setTimeout(() => {
+                arena.classList.remove('flash-green', 'flash-red-crit');
+                checkBattleState();
+            }, 500);
+
+        } else {
+            state.hp = Math.max(0, state.hp - 25);
+            updateUI();
+            
+            const app = document.getElementById('app');
+            app.classList.add('shake');
+            setTimeout(() => app.classList.remove('shake'), 300);
+
+            // Show correct answer reveal
+            const reveal = document.getElementById('answer-reveal');
+            document.getElementById('reveal-text').innerText = state.currentQ.a;
+            reveal.style.display = 'flex';
+            
+            setTimeout(() => {
+                reveal.style.display = 'none';
+                checkBattleState();
+            }, 2000);
+        }
+    }
+
+    function showCritText() {
+        const text = document.createElement('div');
+        text.className = 'crit-text';
+        text.innerText = 'CRITICAL!';
+        const monster = document.querySelector('.monster');
+        const rect = monster.getBoundingClientRect();
+        text.style.left = (rect.left + 50) + 'px';
+        text.style.top = rect.top + 'px';
+        document.body.appendChild(text);
+        setTimeout(() => text.remove(), 1000);
+    }
+
+    function checkBattleState() {
+        if (state.monsterHp <= 0) {
+            // Defeated monster
+            const drop = Math.floor(Math.random() * 31) + 20; // 20-50
+            alert(`擊敗怪物！掉落了 ${drop} 金幣！`);
+            addGold(drop);
+            state.stage++;
+            
+            if (state.stage >= 5) {
+                winGame();
+            } else {
+                showScreen('shop-screen');
+            }
+        } else if (state.hp <= 0) {
+            // Player dies
+            if (state.charms > 0) {
+                state.charms--;
+                state.hp = 1;
+                updateUI();
+                document.getElementById('revive-modal').classList.add('active');
+            } else {
+                if (state.hp === 0 && document.getElementById('player-hp').innerText == "1") {
+                    // Already at 1 HP from previous punish -> Game Over
+                    document.getElementById('game-over-modal').classList.add('active');
+                } else {
+                    document.getElementById('stage-fail-modal').classList.add('active');
+                }
+            }
+        } else {
+            nextQuestion();
+        }
+    }
+
+    // --- Shop & Items ---
+    function buyItem(type, price) {
+        if (state.gold >= price) {
+            addGold(-price);
+            if (type === 'potion') state.potions++;
+            if (type === 'crystal') state.crystals++;
+            if (type === 'charm') state.charms++;
+            alert('購買成功！');
+            updateUI();
+        } else {
+            alert('金幣不足！');
+        }
+    }
+
+    function nextStage() {
+        startStage();
+    }
+
+    // --- Bag ---
+    document.getElementById('btn-bag').onclick = () => {
+        updateUI();
+        document.getElementById('bag-modal').classList.add('active');
+    };
+
+    function closeBag() {
+        document.getElementById('bag-modal').classList.remove('active');
+    }
+
+    function usePotion() {
+        if (state.potions > 0 && state.hp < state.maxHp) {
+            state.potions--;
+            state.hp = Math.min(state.maxHp, state.hp + 50);
+            state.stats.potionsUsed++;
+            updateUI();
+        }
+    }
+
+    // --- Screens ---
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+
+    function winGame() {
+        document.getElementById('game-header').style.display = 'none';
+        document.getElementById('win-correct').innerText = state.stats.correct;
+        document.getElementById('win-gold').innerText = state.gold;
+        document.getElementById('win-potions').innerText = state.stats.potionsUsed;
+        localStorage.setItem('cert_warrior', 'true');
+        document.getElementById('win-modal').classList.add('active');
+    }
+
+</script>
+
+</body>
+</html>
