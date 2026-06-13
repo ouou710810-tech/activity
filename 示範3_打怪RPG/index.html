@@ -519,7 +519,8 @@
     ];
 
     const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRMMMBiO-z_okWIti9ZfstXiXnCKi9-VX81uNdMNSPn677BPz0rqz4VASaOpV2a2y_UT3WHcpq2wGNX/pub?output=csv";
-    
+    const PROXY_URL = "https://corsproxy.io/?" + encodeURIComponent(CSV_URL);
+
     const FALLBACK_QS = [
         { q: "這是內建範例題，請問 1+1=?", a: "2", wrong: ["3","4","5"] },
         { q: "台灣的修辭學中，「黑夜給了我黑色的眼睛，我卻用它尋找光明」是?", a: "轉化", wrong: ["譬喻","排比","誇飾"] },
@@ -528,26 +529,49 @@
         { q: "哪顆行星距離太陽最近?", a: "水星", wrong: ["金星","火星","地球"] }
     ];
 
-    // --- Init & Fetch ---
+    async function fetchCSV(url) {
+        const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return await res.text();
+    }
+
+    // --- Init & Fetch (3-stage: direct → CORS proxy → fallback) ---
     window.onload = async () => {
+        let loaded = false;
+
+        // Stage 1: try direct URL (works on http:// server & GitHub Pages)
         try {
-            const res = await fetch(CSV_URL);
-            if(!res.ok) throw new Error("Fetch failed");
-            const text = await res.text();
+            const text = await fetchCSV(CSV_URL);
             parseCSV(text);
-        } catch (e) {
-            console.warn("Using fallback questions", e);
-            state.questions = [...FALLBACK_QS];
+            loaded = true;
+            console.log("✅ 題庫載入成功（直連）");
+        } catch (e1) {
+            console.warn("⚠️ 直連失敗，嘗試 CORS Proxy…", e1.message);
         }
 
-        if(state.questions.length === 0) {
+        // Stage 2: try CORS proxy (works when opened via file://)
+        if (!loaded) {
+            try {
+                const text = await fetchCSV(PROXY_URL);
+                parseCSV(text);
+                loaded = true;
+                console.log("✅ 題庫載入成功（CORS Proxy）");
+            } catch (e2) {
+                console.warn("⚠️ CORS Proxy 也失敗，使用內建備用題庫。", e2.message);
+            }
+        }
+
+        // Stage 3: fallback
+        if (!loaded || state.questions.length === 0) {
             state.questions = [...FALLBACK_QS];
+            console.warn("⚠️ 使用內建備用題庫");
         }
 
         document.getElementById('loading-screen').classList.remove('active');
         document.getElementById('game-header').style.display = 'flex';
         startStage();
     };
+
 
     function parseCSV(csvText) {
         const lines = csvText.split('\n').map(l => l.trim()).filter(l => l);
